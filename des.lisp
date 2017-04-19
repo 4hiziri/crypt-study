@@ -140,13 +140,66 @@
 (defun feistel (f bits-64 keys)
   (let ((l-bits-32 (subseq bits-64 0 32))
 	(r-bits-32 (subseq bits-64 32 64)))
-    (dolist (key keys (concatenate 'bit-vector l-bits-32 r-bits-32))
+    (dolist (key keys (concatenate 'bit-vector r-bits-32 l-bits-32))
       (setf l-bits-32 (bit-xor l-bits-32 (funcall f r-bits-32 key)))
       (rotatef l-bits-32 r-bits-32))))
 
-(defun des-encryption (bits-64 key)
+(defun des-process (bits-64 keys)
   (flet ((round-func (bits-32 round-key)
 	   (permutation (substitution (key-mixing (expansion-permutation bits-32) round-key)))))
-    (feistel #'round-func bits-64 (keys-16 key))))
+    (feistel #'round-func bits-64 keys)))
+
+(defun des-encryption (bits-64 key)
+  (des-process bits-64 (keys-16 key)))
+
+(defun des-decryption (bits-64 key)
+  (des-process bits-64 (reverse (keys-16 key))))
 
 ;; mode
+(defun slash-block (bits &optional (size 64))
+  (let ((len (length bits))
+	(c 0)	
+	(ret nil)
+	(acc nil))
+    (dotimes (index len (reverse ret))
+      (let ((b (aref bits index)))
+	(push b acc)
+	(incf c)
+	(when (= c size)
+	  (push (make-array size :element-type 'bit :initial-contents (reverse acc)) ret)
+	  (setf c 0 acc nil))))
+    (if (= c 0)
+	(reverse ret)
+	(reverse (cons (concatenate 'bit-vector (reverse acc)
+				    (make-array (- size c) :element-type 'bit :initial-element 0))
+		       ret)))))
+
+(defun encode-ascii (string &optional (byte 1))
+  "for string"
+  (reduce (lambda (x y) (concatenate 'bit-vector x y))
+	  (mapcar (lambda (x) (int2bit x (* 8 byte)))
+		  (mapcar #'char-code (coerce string 'list)))))
+
+(defun decode-ascii (bits &optional (byte 1))
+  "for string"
+  (coerce (mapcar #'code-char
+		  (remove-if (lambda (x) (= 0 x))
+			     (mapcar #'bit2int (slash-block bits (* byte 8))))) 'string))
+
+;; password is "password"
+(defparameter password-hash #xc8fed00eb2e87f1cee8e90ebbe870c190ac3848c)
+
+(defun ecb (data password cipher)
+  (let ((blocks (slash-block data))
+	(key (int2bit password 56)))
+    (reduce (lambda (x y) (concatenate 'bit-vector x y))
+	    (mapcar (lambda (b) (funcall cipher b key)) blocks))))
+
+(defun ecb-encrypt (data pass)
+  (ecb data pass #'des-encryption))
+
+(defun ecb-decrypt (data pass)
+  (ecb data pass #'des-decryption))
+
+(defun test (string)
+  (decode-ascii (ecb-decrypt (ecb-encrypt (encode-ascii string) password-hash) password-hash)))
