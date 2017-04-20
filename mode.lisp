@@ -64,8 +64,15 @@
   (test string
 	password-hash
 	56
-	(crypt-on-mode #'ecb-encrypt #'des-encryption)
-	(crypt-on-mode #'ecb-decrypt #'des-decryption)))
+	(crypt-on-mode #'ecb-encrypt #'des-ede1-encryption)
+	(crypt-on-mode #'ecb-decrypt #'des-ede1-decryption)))
+
+(defun test-ede2-ecb (string)
+  (test string
+	password-hash
+	112
+	(crypt-on-mode #'ecb-encrypt #'des-ede2-encryption)
+	(crypt-on-mode #'ecb-decrypt #'des-ede2-decryption)))
 
 (defun test-ede3-ecb (string)
   (test string

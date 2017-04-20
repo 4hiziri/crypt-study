@@ -121,3 +121,19 @@
       (des-decryption bits-64 key3-56)
       key2-56)
      key1-56)))
+
+(defun des-ede2-encryption (bits-64 key-112)
+  (let ((key1-56 (subseq key-112 0 56))
+	(key2-56 (subseq key-112 56 112)))
+    (des-ede3-encryption bits-64 (concat-bit-array key1-56 key2-56 key1-56))))
+
+(defun des-ede2-decryption (bits-64 key-112)
+  (let ((key1-56 (subseq key-112 0 56))
+	(key2-56 (subseq key-112 56 112)))
+    (des-ede3-decryption bits-64 (concat-bit-array key1-56 key2-56 key1-56))))
+
+(defun des-ede1-encryption (bits-64 key-56)
+  (des-ede3-encryption bits-64 (concat-bit-array key-56 key-56 key-56)))
+
+(defun des-ede1-decryption (bits-64 key-56)
+  (des-ede3-decryption bits-64 (concat-bit-array key-56 key-56 key-56)))
