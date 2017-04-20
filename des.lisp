@@ -1,50 +1,4 @@
-(defun random-bit-list (num)
-  (let ((ret nil))    
-    (loop for r = (random num) then (random num)
-	  when (= (length ret) num)
-	    do (return ret)
-	  when (not (member r ret))
-	    do (push r ret))))
-
-(defun mapping ()
-  "generate mapping-list expansion-permutation"
-  (let ((ret (list (cons 31 (loop for i from 0 to 4 collect i)))))
-    (loop repeat 6
-	  for i = 3 then (+ i 4)
-	  do (push (loop repeat 6 for j from i collect j) ret))
-    (apply #'append
-	   (reverse (cons (append (loop for i from 27 to 31 collect i) '(1)) ret)))))
-
-(defun map2vec (map-table vector)
-  (make-array (length map-table) :element-type (array-element-type vector)
-				 :initial-contents (mapcar (lambda (x) (aref vector x)) map-table)))
-
-(defun regulate-list (list num)
-  "regulate length of list to num. if list is expanded, padding 0 to its head"
-  (let ((len (length list)))
-    (if (> num len)
-	(append (loop repeat (- num len) collect 0) list)
-	(subseq list 0 num))))
-
-(defun int2bit (num &optional (len nil len-p))
-  "integer -> bit-array. len is length of bit."
-  (loop for bits = nil then (push r bits)
-	for q = num then (/ (- q r) 2)
-        for r = (mod num 2) then (mod q 2)
-	when (or (= q 0) (= q 1))
-	  do (let* ((res (cons q bits))
-		    (size (if len-p len (length res))))
-	       (return (make-array size
-				   :element-type 'bit
-				   :initial-contents (regulate-list res size))))))
-
-(defun bit2int (bits)
-  "bit-array -> integer"
-  (let ((list (coerce bits 'list))
-	(ret 0))
-    (dolist (b list ret)
-      (setf ret (ash ret 1))
-      (incf ret b))))
+(load "./util.lisp")
 
 (defparameter mapping-table '(31 0 1 2 3 4
 			      3 4 5 6 7 8
@@ -106,23 +60,16 @@
 	    for s in s-box-tables
 	    for i = 0 then (+ i 6)
 	    do (push (int2bit (convert (subseq bits-48 i (+ i 6)) s) 4) ret))
-      (reduce (lambda (x y) (concatenate 'bit-vector x y)) (reverse ret)))))
+      (apply #'concat-bit-array (reverse ret)))))
 
 (defparameter perm-table '(8 17 11 31 2 9 14 18 26 6 22 5 0 23 16 1 7 28 27 29 30 10 21 24 19 3 15 25 12 13 4 20))
 (defun permutation (bits-32 &optional (table perm-table))
   (map2vec table bits-32))
 
-(defun array-shift-left (array num)
-  (let ((len (length array)))
-    (dotimes (c (- len num))
-      (setf (aref array c) (aref array (+ c num))))
-    (dotimes (c num array)
-      (setf (aref array (+ (- len num) c)) 0))))
-
 (defparameter lmap '(8 3 27 24 23 11 19 6 4 16 21 20 0 9 15 14 13 10 18 2 26 1 12 17))
 (defparameter rmap '(5 19 24 13 25 3 6 4 11 22 12 1 21 2 26 23 9 18 15 7 27 0 16 20))
 (defun compress (lbits-28 rbits-28 &optional (l-table lmap) (r-table rmap))
-  (concatenate 'bit-vector (map2vec l-table lbits-28) (map2vec r-table rbits-28)))
+  (concat-bit-array (map2vec l-table lbits-28) (map2vec r-table rbits-28)))
 
 (defun key-generate (lbits-28 rbits-28)
   (compress lbits-28 rbits-28))
@@ -140,7 +87,7 @@
 (defun feistel (f bits-64 keys)
   (let ((l-bits-32 (subseq bits-64 0 32))
 	(r-bits-32 (subseq bits-64 32 64)))
-    (dolist (key keys (concatenate 'bit-vector r-bits-32 l-bits-32))
+    (dolist (key keys (concat-bit-array r-bits-32 l-bits-32))
       (setf l-bits-32 (bit-xor l-bits-32 (funcall f r-bits-32 key)))
       (rotatef l-bits-32 r-bits-32))))
 
@@ -149,57 +96,8 @@
 	   (permutation (substitution (key-mixing (expansion-permutation bits-32) round-key)))))
     (feistel #'round-func bits-64 keys)))
 
-(defun des-encryption (bits-64 key)
-  (des-process bits-64 (keys-16 key)))
+(defun des-encryption (bits-64 key-56)
+  (des-process bits-64 (keys-16 key-56)))
 
-(defun des-decryption (bits-64 key)
-  (des-process bits-64 (reverse (keys-16 key))))
-
-;; mode
-(defun slash-block (bits &optional (size 64))
-  (let ((len (length bits))
-	(c 0)	
-	(ret nil)
-	(acc nil))
-    (dotimes (index len (reverse ret))
-      (let ((b (aref bits index)))
-	(push b acc)
-	(incf c)
-	(when (= c size)
-	  (push (make-array size :element-type 'bit :initial-contents (reverse acc)) ret)
-	  (setf c 0 acc nil))))
-    (if (= c 0)
-	(reverse ret)
-	(reverse (cons (concatenate 'bit-vector (reverse acc)
-				    (make-array (- size c) :element-type 'bit :initial-element 0))
-		       ret)))))
-
-(defun encode-ascii (string &optional (byte 1))
-  "for string"
-  (reduce (lambda (x y) (concatenate 'bit-vector x y))
-	  (mapcar (lambda (x) (int2bit x (* 8 byte)))
-		  (mapcar #'char-code (coerce string 'list)))))
-
-(defun decode-ascii (bits &optional (byte 1))
-  "for string"
-  (coerce (mapcar #'code-char
-		  (remove-if (lambda (x) (= 0 x))
-			     (mapcar #'bit2int (slash-block bits (* byte 8))))) 'string))
-
-;; password is "password"
-(defparameter password-hash #xc8fed00eb2e87f1cee8e90ebbe870c190ac3848c)
-
-(defun ecb (data password cipher)
-  (let ((blocks (slash-block data))
-	(key (int2bit password 56)))
-    (reduce (lambda (x y) (concatenate 'bit-vector x y))
-	    (mapcar (lambda (b) (funcall cipher b key)) blocks))))
-
-(defun ecb-encrypt (data pass)
-  (ecb data pass #'des-encryption))
-
-(defun ecb-decrypt (data pass)
-  (ecb data pass #'des-decryption))
-
-(defun test (string)
-  (decode-ascii (ecb-decrypt (ecb-encrypt (encode-ascii string) password-hash) password-hash)))
+(defun des-decryption (bits-64 key-56)
+  (des-process bits-64 (reverse (keys-16 key-56))))
