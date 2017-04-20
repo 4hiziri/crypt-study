@@ -102,16 +102,22 @@
 (defun des-decryption (bits-64 key-56)
   (des-process bits-64 (reverse (keys-16 key-56))))
 
-(defun des-ede3-encryption (bits-64 key1-56 key2-56 key3-56)
-  (des-encryption
-   (des-decryption
-    (des-encryption bits-64 key1-56)
-    key2-56)
-   key3-56))
+(defun des-ede3-encryption (bits-64 key-168)
+  (let ((key1-56 (subseq key-168 0 56))
+	(key2-56 (subseq key-168 56 112))
+	(key3-56 (subseq key-168 112 168)))
+    (des-encryption
+     (des-decryption
+      (des-encryption bits-64 key1-56)
+      key2-56)
+     key3-56)))
 
-(defun des-ede3-decryption (bits-64 key1-56 key2-56 key3-56)
-  (des-decryption
-   (des-encryption
-    (des-decryption bits-64 key3-56)
-    key2-56)
-   key1-56))
+(defun des-ede3-decryption (bits-64 key-168)
+  (let ((key1-56 (subseq key-168 0 56))
+	(key2-56 (subseq key-168 56 112))
+	(key3-56 (subseq key-168 112 168)))
+    (des-decryption
+     (des-encryption
+      (des-decryption bits-64 key3-56)
+      key2-56)
+     key1-56)))
