@@ -41,8 +41,20 @@
        (lambda (prev next) prev)
        iv))
 
-;; 
+;; cfb-mode
+(defun cfb (data key encrypt get-iv iv)
+  (let ((blocks (slash-block data))
+	(prev iv)
+	(ret nil))
+    (dolist (b blocks (apply #'concat-bit-array (reverse ret)))
+      (push (bit-xor (funcall encrypt prev key) b) ret)
+      (setf prev (funcall get-iv b (car ret))))))
 
+(defun cfb-encrypt (data key encrypt &optional (iv *iv*))
+  (cfb data key encrypt (lambda (p n) n) iv))
+
+(defun cfb-decrypt (data key encrypt &optional (iv *iv*))
+  (cfb data key encrypt (lambda (p n) p) iv))
 
 ;;; easy-test
 ;; password is "password", use shasum as hash-function
@@ -87,3 +99,10 @@
 	56
 	(crypt-on-mode #'cbc-encrypt #'des-encryption)
 	(crypt-on-mode #'cbc-decrypt #'des-decryption)))
+
+(defun test-des-cfb (string)
+  (test string
+	password-hash
+	56
+	(crypt-on-mode #'cfb-encrypt #'des-encryption)
+	(crypt-on-mode #'cfb-decrypt #'des-encryption)))
