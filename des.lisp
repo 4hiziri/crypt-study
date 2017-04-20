@@ -101,3 +101,17 @@
 
 (defun des-decryption (bits-64 key-56)
   (des-process bits-64 (reverse (keys-16 key-56))))
+
+(defun des-ede3-encryption (bits-64 key1-56 key2-56 key3-56)
+  (des-encryption
+   (des-decryption
+    (des-encryption bits-64 key1-56)
+    key2-56)
+   key3-56))
+
+(defun des-ede3-decryption (bits-64 key1-56 key2-56 key3-56)
+  (des-decryption
+   (des-encryption
+    (des-decryption bits-64 key3-56)
+    key2-56)
+   key1-56))
