@@ -71,6 +71,22 @@
 (defun ofb-decrypt (data key encrypt &optional (iv *iv*))
   (ofb data key encrypt iv))
 
+;; ctr-mode
+(defparameter *nonce* #*00110101010000111111001010111100)
+(defun ctr (data key encrypt &optional (nonce *nonce*))
+  (let ((blocks (slash-block data))
+	(counter (concat-bit-array nonce (int2bit 0 32)))
+	(ret nil))
+    (dolist (b blocks (apply #'concat-bit-array (reverse ret)))
+      (push (bit-xor (funcall encrypt counter key) b) ret)
+      (setf counter (inc-bit-array counter)))))
+
+(defun ctr-encrypt (data key encrypt &optional (nonce *nonce*))
+  (ctr data key encrypt nonce))
+
+(defun ctr-decrypt (data key encrypt &optional (nonce *nonce*))
+  (ctr data key encrypt nonce))
+
 ;;; easy-test
 ;; password is "password", use shasum as hash-function
 (defparameter password-hash #xc8fed00eb2e87f1cee8e90ebbe870c190ac3848c)
@@ -128,3 +144,10 @@
 	56
 	(crypt-on-mode #'ofb-encrypt #'des-encryption)
 	(crypt-on-mode #'ofb-decrypt #'des-encryption)))
+
+(defun test-des-ctr (string)
+  (test string
+	password-hash
+	56
+	(crypt-on-mode #'ctr-encrypt #'des-encryption)
+	(crypt-on-mode #'ctr-decrypt #'des-encryption)))
