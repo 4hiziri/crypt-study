@@ -56,6 +56,21 @@
 (defun cfb-decrypt (data key encrypt &optional (iv *iv*))
   (cfb data key encrypt (lambda (p n) p) iv))
 
+;; ofb-mode
+(defun ofb (data key encrypt &optional (iv *iv*))
+  (let ((blocks (slash-block data))
+	(stream-key iv)
+	(ret))
+    (dolist (b blocks (apply #'concat-bit-array (reverse ret)))
+      (setf stream-key (funcall encrypt stream-key key))
+      (push (bit-xor b stream-key) ret))))
+
+(defun ofb-encrypt (data key encrypt &optional (iv *iv*))
+  (ofb data key encrypt iv))
+
+(defun ofb-decrypt (data key encrypt &optional (iv *iv*))
+  (ofb data key encrypt iv))
+
 ;;; easy-test
 ;; password is "password", use shasum as hash-function
 (defparameter password-hash #xc8fed00eb2e87f1cee8e90ebbe870c190ac3848c)
@@ -106,3 +121,10 @@
 	56
 	(crypt-on-mode #'cfb-encrypt #'des-encryption)
 	(crypt-on-mode #'cfb-decrypt #'des-encryption)))
+
+(defun test-des-ofb (string)
+  (test string
+	password-hash
+	56
+	(crypt-on-mode #'ofb-encrypt #'des-encryption)
+	(crypt-on-mode #'ofb-decrypt #'des-encryption)))
