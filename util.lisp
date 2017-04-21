@@ -85,3 +85,6 @@
   (coerce (mapcar #'code-char
 		  (remove-if (lambda (x) (= 0 x))
 			     (mapcar #'bit2int (slash-block bits (* byte 8))))) 'string))
+
+(defun inc-bit-array (bits)
+  (int2bit (1+ (bit2int bits)) (length bits)))
