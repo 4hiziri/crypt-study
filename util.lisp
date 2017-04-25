@@ -94,6 +94,34 @@
   (dotimes (n (length b) a)
     (setf (aref a (+ pos n)) (aref b n))))
 
+(defun bit-index-list (bit-array)
+  "! bit-array[0] is msb !"
+  (loop with len = (length bit-array)
+	for i from 0 below len
+	when (= (aref bit-array (- (1- len) i))
+		1)
+	  collect i))
+
+(defun bit-shift (bit-array count len)
+  (int2bit (ash (bit2int bit-array) count) len))
+
+(defun gf-mod (b1 b2 len)
+  (labels ((below-powered (n1 n2 prev-n1)
+	     (if (> n1 n2)
+		 prev-n1
+		 (below-powered (ash n1 1) n2 n1)))
+	   (inner-loop (n1 n2)
+	     (if (< n1 n2)
+		 (int2bit n1 len)
+		 (inner-loop (logxor n1 (below-powered n2 n1 n2)) n2))))
+    (inner-loop (bit2int b1) (bit2int b2))))
+
+(defun gf-mult (b1 b2)
+  (let ((b2-pos-1 (bit-index-list b2)))
+    (gf-mod (reduce #'bit-xor (mapcar (lambda (x) (bit-shift b1 x 16)) b2-pos-1))
+	    (int2bit #b100011011 9)
+	    (length b1))))
+
 ;; integer as bit
 (defun map-byte (func bytes bit-len &optional (bit-num 8))
   (let ((rest bytes)
