@@ -1,5 +1,5 @@
-(defun random-bit-list (num)
-  (let ((ret nil))    
+(defun random-map-list (num)
+  (let ((ret nil))
     (loop for r = (random num) then (random num)
 	  when (= (length ret) num)
 	    do (return ret)
@@ -88,3 +88,18 @@
 
 (defun inc-bit-array (bits)
   (int2bit (1+ (bit2int bits)) (length bits)))
+
+(defun set-bytes (a b pos)
+  "set b to part of a"
+  (dotimes (n (length b) a)
+    (setf (aref a (+ pos n)) (aref b n))))
+
+;; integer as bit
+(defun map-byte (func bytes bit-len &optional (bit-num 8))
+  (let ((rest bytes)
+	(acc 0))
+    (dotimes (n (truncate bit-len bit-num) acc)
+      (setf acc (+ acc
+		   (ash (funcall func (logand rest (1- (expt 2 bit-num))))
+			(* bit-num n)))
+	    rest (ash rest (- bit-num))))))
