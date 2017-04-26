@@ -65,4 +65,23 @@
 	(dotimes (m 4)
 	  (setf (aref ret m n) (nth m column)))))))
 
+(defun add-round-key (bytes-4 round-keys)
+  (let ((ret (make-array '(4 4))))
+    (dotimes (i 4 ret)
+      (dotimes (j 4)
+	(setf (aref ret j i) (bit-xor (aref bytes-4 j i)
+				      (subseq (aref round-keys i)
+					      (* j 8)
+					      (* (1+ j) 8))))))))
 
+(defun sub-word (word &optional (map *subbyte-map*))
+  (let ((ret nil))
+    (dotimes (i 4 (apply #'concat-bit-array (reverse ret)))
+      (push (sub-byte (subseq word (* i 8) (* (1+ i) 8)) map) ret))))
+
+(defun rot-word (word)
+  (let ((bytes (loop for i from 0 below 4 collect (subseq word (* i 8) (* (1+ i) 8)))))
+    (concat-bit-array (nth 1 bytes) (nth 2 bytes)(nth 3 bytes)(nth 0 bytes))))
+
+(defun key-expansion (key)
+  )

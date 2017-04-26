@@ -74,6 +74,16 @@
 					 (make-array (- size c) :element-type 'bit :initial-element 0))
 		       ret)))))
 
+(defun bit-lrotate (bit count)
+  (let ((need-rotate (mod count (length bit)))
+	(bit-list (coerce bit 'list))
+	(acc nil))
+    (dotimes (c need-rotate (make-array (length bit)
+				  :element-type 'bit
+				  :initial-contents (append bit-list (reverse acc))))
+      (push (car bit-list) acc)
+      (setf bit-list (cdr bit-list)))))
+
 (defun encode-ascii (string &optional (byte 1))
   "for string"
   (apply #'concat-bit-array
