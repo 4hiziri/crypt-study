@@ -16,8 +16,9 @@
 	   (reverse (cons (append (loop for i from 27 to 31 collect i) '(1)) ret)))))
 
 (defun map2vec (map-table vector)
-  (make-array (length map-table) :element-type (array-element-type vector)
-				 :initial-contents (mapcar (lambda (x) (aref vector x)) map-table)))
+  (let ((map (mapcar (lambda (x) (aref vector x)) map-table)))    
+    (make-array (length map-table) :element-type (array-element-type vector)
+				   :initial-contents map)))
 
 (defun concat-bit-array (&rest bit-arrays)
   (reduce (lambda (x y) (concatenate 'bit-vector x y)) bit-arrays))
@@ -127,10 +128,16 @@
     (inner-loop (bit2int b1) (bit2int b2))))
 
 (defun gf-mult (b1 b2)
-  (let ((b2-pos-1 (bit-index-list b2)))
-    (gf-mod (reduce #'bit-xor (mapcar (lambda (x) (bit-shift b1 x 16)) b2-pos-1))
+  (let ((b2-pos-1 (bit-index-list b2))
+	(max-len (+ (length b1) (length b2))))
+    (gf-mod (reduce #'bit-xor (mapcar (lambda (x) (bit-shift b1 x max-len)) b2-pos-1))
 	    (int2bit #b100011011 9)
 	    (length b1))))
+
+(defun gf-power (bit-array num)
+  (let ((ret bit-array))
+    (dotimes (n (1- num) ret)
+      (setf ret (gf-mult ret bit-array)))))
 
 ;; integer as bit
 (defun map-byte (func bytes bit-len &optional (bit-num 8))

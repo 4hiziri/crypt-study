@@ -9,6 +9,10 @@
 	(let ((head (+ (* 32 i) (* j 8))))
 	  (setf (aref mat j i) (subseq bits head (+ head 8))))))))
 
+(defparameter Nk 4)
+(defparameter Nb 4)
+(defparameter Nr 12)
+
 (defparameter *subbyte-map*
   #(116 240 67 157 27 191 253 66 61 175 113 215 170 125 2 197 69 31 119 222 237
     242 95 187 109 174 74 107 105 239 183 29 229 44 234 134 0 149 99 144 68 136 10
@@ -80,8 +84,10 @@
       (push (sub-byte (subseq word (* i 8) (* (1+ i) 8)) map) ret))))
 
 (defun rot-word (word)
-  (let ((bytes (loop for i from 0 below 4 collect (subseq word (* i 8) (* (1+ i) 8)))))
-    (concat-bit-array (nth 1 bytes) (nth 2 bytes)(nth 3 bytes)(nth 0 bytes))))
+  (bit-lrotate word 8))
+
+(defun r-con (word i)
+  )
 
 (defun key-expansion (key)
   )
