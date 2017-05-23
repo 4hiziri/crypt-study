@@ -27,6 +27,25 @@
     128 110 135 182 225 140 76 161 142 177 13 202 204 146 121 98 193 103 172 145
     153 37 246 137 9 226 28 143 71 22 218 20 132 101 210 24 45))
 
+(defparameter *matrix-sbox* #(#*10001111
+			      #*11000111
+			      #*11100011
+			      #*11110001
+			      #*11111000
+			      #*01111100
+			      #*00111110
+			      #*00011111))
+
+(defun sub-byte (byte)
+  (let ((ret (make-array 8 :element-type 'bit))
+	(salt #*11000110))
+    (dotimes (i 8 (bit-xor ret salt))
+      (setf (aref ret i) (reduce (lambda (x y) (logxor x y))
+				 (bit-xor byte (aref *matrix-sbox* i)))))))
+
+(defun sub-bytes (state)
+  )
+
 (defun sub-byte (byte map &optional (get (lambda (arr x) (aref arr x))))
   "convert 8bit to another 8bit by map's index - value"
   (int2bit (funcall get map (bit2int byte)) 8))
@@ -91,3 +110,33 @@
 
 (defun key-expansion (key)
   )
+
+(defun input-to-state (input)
+  "vector to 2-dimention arr"
+  (let ((state (make-array (list 4 Nb))))
+    (dotimes (r 4)
+      (dotimes (c Nb)
+	(setf (aref state r c) (aref input (+ r (* 4 c))))))))
+
+(defun state-to-output (state)
+  (let ((output (make-array (* 4 Nb))))
+    (dotimes (r 4)
+      (dotimes (c Nb)
+	(setf (aref output (+ r (* 4 c))) (aref state r c))))))
+
+(defun encrypt (input key)  
+  (let ((state (input-to-state input))
+	(round-keys (key-expansion key)))
+    ;; add-round-key should have side-effect?
+    ;; or implement this macro?
+    ;; or extracting first 4 element as method
+    (setf state (add-round-key state round-keys))
+    (dotimes (n (- Nr 2))
+      (setf (add-round-key (mix-columns
+			    (shift-rows
+			     (sub-bytes state)))
+			   round-keys ;; how handle?
+			   )))
+
+    (add-round-key (shift-rows (sub-bytes state)) round-keys)
+    (state-to-output)))
