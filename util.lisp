@@ -51,6 +51,7 @@
       (incf ret b))))
 
 (defun array-shift-left (array num)
+  "padding 0 last of array"
   (let ((len (length array)))
     (dotimes (c (- len num))
       (setf (aref array c) (aref array (+ c num))))
@@ -122,22 +123,35 @@
 		 prev-n1
 		 (below-powered (ash n1 1) n2 n1)))
 	   (inner-loop (n1 n2)
-	     (if (< n1 n2)
-		 (int2bit n1 len)
-		 (inner-loop (logxor n1 (below-powered n2 n1 n2)) n2))))
+	     (cond ((= (length (int2bit n1)) 9) (int2bit (logxor n1 n2) len))
+		   ((< n1 n2) (int2bit n1 len))
+		   (t (inner-loop (logxor n1 (below-powered n2 n1 n2)) n2)))))
     (inner-loop (bit2int b1) (bit2int b2))))
 
-(defun gf-mult (b1 b2)
+(defun gf-mult-nm (b1 b2)
   (let ((b2-pos-1 (bit-index-list b2))
 	(max-len (+ (length b1) (length b2))))
-    (gf-mod (reduce #'bit-xor (mapcar (lambda (x) (bit-shift b1 x max-len)) b2-pos-1))
-	    (int2bit #b100011011 9)
-	    (length b1))))
+    (reduce #'bit-xor (mapcar (lambda (x) (bit-shift b1 x max-len)) b2-pos-1))))
+
+(defun gf-mult (b1 b2)
+  (gf-mod (gf-mult-nm b1 b2)
+	  (int2bit #b100011011 9)
+	  (length b1)))
 
 (defun gf-power (bit-array num)
-  (let ((ret bit-array))
-    (dotimes (n (1- num) ret)
-      (setf ret (gf-mult ret bit-array)))))
+  (if (= num 0)
+      (int2bit 1 (length bit-array))
+      (let ((acc bit-array))
+	(dotimes (n (1- num) (gf-mod acc (int2bit #b100011011 9) (length bit-array)))
+	  (setf acc (gf-mult-nm bit-array acc))))))
+
+(defun bit-shift-pad-0 (bit-array num)
+  (concat-bit-array bit-array (int2bit 0 num)))
+
+(defun gf-power (bit-array num)
+  (if (= num 0)
+      (int2bit 1 (length bit-array))
+      (gf-mod (bit-shift-pad-0 bit-array (1- num)) #*100011011 (length bit-array))))
 
 ;; integer as bit
 (defun map-byte (func bytes bit-len &optional (bit-num 8))
