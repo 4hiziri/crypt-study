@@ -55,14 +55,24 @@
       (dotimes (c Nb)
 	(setf (aref ret r c) (sub-byte (aref state r c)))))))
 
-(defun shift-rows (bytes-mat)
-  (dotimes (n 3 bytes-mat)
-    (let ((i (1+ n)))
-      (dotimes (j i)
-	(rotatef (aref bytes-mat i 0)
-		 (aref bytes-mat i 1)
-		 (aref bytes-mat i 2)
-		 (aref bytes-mat i 3))))))
+;; #2A((1 2 3 4)
+;;     (5 6 7 8)
+;;     (9 10 11 12)
+;;     (13 14 15 16))
+
+;; how implement?
+;; Does it depend Nb
+(defun shift (r)
+  r)
+
+(defun shift-rows (state)
+  (let ((ret (make-array (list 4 Nb))))
+    (dotimes (c Nb)
+      (setf (aref ret 0 c) (aref state 0 c)))
+    (loop for r from 1 to 3 do
+      (dotimes (c Nb)
+	(setf (aref ret r c) (aref state r (mod (+ c (shift r)) Nb)))))
+    ret))
 
 (defun mix-column (column)
   (flet ((gf-mul-cof (b1-vec b2-vec index)
