@@ -1,4 +1,4 @@
-;; Rijndael
+OB;; Rijndael
 ;; use integer as bits
 (load "./util.lisp")
 
@@ -13,7 +13,7 @@
 (defparameter Nb 4)
 (defparameter Nr 12)
 
-(defparameter *subbyte-map*
+(d>0;95;0cefparameter *subbyte-map*
   #(116 240 67 157 27 191 253 66 61 175 113 215 170 125 2 197 69 31 119 222 237
     242 95 187 109 174 74 107 105 239 183 29 229 44 234 134 0 149 99 144 68 136 10
     51 82 181 221 77 249 78 245 64 42 89 34 164 8 236 85 151 94 35 114 97 1 165 15
@@ -86,8 +86,12 @@
 (defun rot-word (word)
   (bit-lrotate word 8))
 
-(defun r-con (word i)
-  )
+(defun r-con (i)
+  (let ((base-byte (int2bit 2 8)))
+    (concat-bit-array (gf-power base-byte (1- i))
+		      (loop repeat 3 collect (int2bit 0 8)))))
+
+
 
 (defun key-expansion (key)
   )
