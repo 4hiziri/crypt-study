@@ -1,4 +1,4 @@
-OB;; Rijndael
+;; Rijndael
 ;; use integer as bits
 (load "./util.lisp")
 
