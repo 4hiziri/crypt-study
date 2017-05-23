@@ -1,6 +1,7 @@
 ;; Rijndael
 ;; use integer as bits
 (load "./util.lisp")
+(load "./gf.lisp")
 
 (defun bits-matrix (bits)
   (let ((mat (make-array '(4 4))))
@@ -37,25 +38,22 @@
 			      #*00011111))
 
 (defun sub-byte (byte)
+  "substitude byte to byte by some mathmatical process."
   (let ((ret (make-array 8 :element-type 'bit))
-	(salt #*11000110))
-    (dotimes (i 8 (bit-xor ret salt))
+	;; original text's indexing is reversed from lisp implement
+	;; so reveres input, output and some parameter
+	(byte (reverse (gf-inv byte))) 
+	(salt #*01100011))
+    (dotimes (i 8 (bit-xor (reverse ret) salt))
       (setf (aref ret i) (reduce (lambda (x y) (logxor x y))
-				 (bit-xor byte (aref *matrix-sbox* i)))))))
+				 (bit-and byte (aref *matrix-sbox* i)))))))
 
 (defun sub-bytes (state)
-  )
-
-(defun sub-byte (byte map &optional (get (lambda (arr x) (aref arr x))))
-  "convert 8bit to another 8bit by map's index - value"
-  (int2bit (funcall get map (bit2int byte)) 8))
-
-(defun sub-bytes (bytes-matrix map)
-  "each byte coverted by map"
-  (let ((ret (make-array (array-dimensions bytes-matrix))))
-    (dotimes (i 4 ret)
-      (dotimes (j 4)
-	(setf (aref ret i j) (sub-byte (aref bytes-matrix i j) map))))))
+  "substitude each byte in state."
+  (let ((ret (make-array (list 4 Nb))))    
+    (dotimes (r 4 ret)
+      (dotimes (c Nb)
+	(setf (aref ret r c) (sub-byte (aref state r c)))))))
 
 (defun shift-rows (bytes-mat)
   (dotimes (n 3 bytes-mat)
