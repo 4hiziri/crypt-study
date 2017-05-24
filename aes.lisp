@@ -62,8 +62,7 @@
 
 ;; how implement?
 ;; Does it depend Nb
-(defun shift (r)
-  r)
+(defun shift (r) r)
 
 (defun shift-rows (state)
   (let ((ret (make-array (list 4 Nb))))
@@ -72,6 +71,15 @@
     (loop for r from 1 to 3 do
       (dotimes (c Nb)
 	(setf (aref ret r c) (aref state r (mod (+ c (shift r)) Nb)))))
+    ret))
+
+(defun inv-shift-rows (state)
+  (let ((ret (make-array (list 4 Nb))))
+    (dotimes (c Nb)
+      (setf (aref ret 0 c) (aref state 0 c)))
+    (loop for r from 1 to 3 do
+      (dotimes (c Nb)
+	(setf (aref ret r (mod (+ c (shift r)) Nb)) (aref state r c))))
     ret))
 
 (defparameter input #2A((#*00011001 #*10100000 #*10011010 #*11101001)
@@ -119,22 +127,13 @@
 			    collect
 			    (gf-mult (aref trans-mat r i) (aref state i c)))))))))
 
-(defun add-round-key (bytes-4 round-keys)
-  (let ((ret (make-array '(4 4))))
-    (dotimes (i 4 ret)
-      (dotimes (j 4)
-	(setf (aref ret j i) (bit-xor (aref bytes-4 j i)
-				      (subseq (aref round-keys i)
-					      (* j 8)
-					      (* (1+ j) 8))))))))
-
-(defun word-to-bytes-seq (word)
-  (loop for i from 0 below 32 by 8
-	collect (subseq word i (+ i 8))))
-
-(defun mapbyte (word func)
-  (apply (lambda (x y z w) (concatenate 'bit-vector x y z w))
-	 (mapcar func (word-to-bytes-seq word))))
+(defun add-round-key (state round-keys)
+  (let ((ret (make-array (list 4 Nb)))
+	(keys round-keys))
+    (dotimes (c Nb ret)
+      (let ((key-blocks (word-to-bytes-seq (pop keys))))	  
+	(dotimes (r 4)
+	  (setf (aref ret r c) (bit-xor (aref state r c) (pop key-blocks))))))))
 
 (defun sub-word (word)
   (mapbyte word #'sub-byte))
@@ -150,13 +149,13 @@
 
 (defun key-expansion (key)
   (flet ((inner-key-divided (key)
+	   "32 * Nk bit key -> list of 32bits block"
 	   (loop for i from 0 below (* 32 Nk) by 32
 		 collect (subseq key i (+ i 32)))))
     (let ((round-keys (make-array (* Nb (1+ Nr))))
 	  (key-blocks (inner-key-divided key)))
-      (dotimes (n Nk)
-	(setf (aref round-keys n) (car key-blocks)
-	      key-blocks (cdr key-blocks)))
+      (dotimes (n Nk) ;; set keys to first Nk words of round-key
+	(setf (aref round-keys n) (pop key-blocks)))
       (loop for i from Nk below (* Nb (1+ Nr))
 	    for tmp = (aref round-keys (1- i)) then (aref round-keys (1- i))
 	    do (setf (aref round-keys i)
@@ -172,29 +171,39 @@
 (defun input-to-state (input)
   "vector to 2-dimention arr"
   (let ((state (make-array (list 4 Nb))))
-    (dotimes (r 4)
+    (dotimes (r 4 state)
       (dotimes (c Nb)
 	(setf (aref state r c) (aref input (+ r (* 4 c))))))))
 
 (defun state-to-output (state)
   (let ((output (make-array (* 4 Nb))))
-    (dotimes (r 4)
+    (dotimes (r 4 (bit2int (apply #'concat-bit-array (coerce output 'list))))
       (dotimes (c Nb)
 	(setf (aref output (+ r (* 4 c))) (aref state r c))))))
 
-(defun encrypt (input key)  
-  (let ((state (input-to-state input))
-	(round-keys (key-expansion key)))
-    ;; add-round-key should have side-effect?
-    ;; or implement this macro?
-    ;; or extracting first 4 element as method
-    (setf state (add-round-key state round-keys))
-    (dotimes (n (- Nr 2))
-      (setf (add-round-key (mix-columns
-			    (shift-rows
-			     (sub-bytes state)))
-			   round-keys ;; how handle?
-			   )))
+(defun encrypt (input key)
+  (flet ((inner-block-to-byte-list (input)
+	   (make-array 16 :initial-contents(loop for i from 0 below 128 by 8
+						 collect (subseq input i (+ i 8))))))
+    (let ((state (input-to-state (inner-block-to-byte-list input)))
+	  (round-keys (key-expansion key)))
+      (setf state (add-round-key state (coerce (subseq round-keys 0 Nb) 'list)))
+      (dotimes (r (- Nr 2))
+	(setf state (add-round-key (mix-columns (shift-rows (sub-bytes state)))
+				   (coerce (subseq round-keys (* (+ r 1) Nb) (* (+ r 2) Nb)) 'list))))
+      (state-to-output (add-round-key (shift-rows (sub-bytes state))
+				      (coerce (subseq round-keys (* (- Nr 1) Nb) (* Nr Nb)) 'list))))))
 
-    (add-round-key (shift-rows (sub-bytes state)) round-keys)
-    (state-to-output)))
+(defun decrypt (input key)
+  (flet ((inner-block-to-byte-list (input)
+	   (make-array 16 :initial-contents(loop for i from 0 below 128 by 8
+						 collect (subseq input i (+ i 8))))))
+    (let ((state (input-to-state (inner-block-to-byte-list input)))
+	  (round-keys (reverse (key-expansion key))))
+      (setf state (add-round-key state (coerce (subseq round-keys 0 Nb) 'list)))
+      (dotimes (r (- Nr 2))
+	(setf state (inv-mix-columns
+		     (add-round-key (inv-sub-bytes (inv-shift-rows state))
+				    (coerce (subseq round-keys (* (+ r 1) Nb) (* (+ r 2) Nb)) 'list)))))
+      (state-to-output (add-round-key (inv-sub-bytes (inv-shift-rows state))
+				      (coerce (subseq round-keys (* (- Nr 1) Nb) (* Nr Nb)) 'list))))))
