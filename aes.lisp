@@ -1,7 +1,7 @@
 ;; Rijndael
 ;; use integer as bits
-(load "./util.lisp")
-(load "./gf.lisp")
+;(load "./util.lisp")
+;(load "./gf.lisp")
 
 (defun bits-matrix (bits)
   (let ((mat (make-array '(4 4))))
@@ -79,18 +79,26 @@
 			(#*11100011 #*11100010 #*10001101 #*01001000)
 			(#*10111110 #*00101011 #*00101010 #*00001000)))
 
-("D4" "E0" "B8" "1E"
- "27" "BF" "B4" "41"
- "11" "98" "5D" "52"
- "AE" "F1" "E5" "30")
-
 (make-array '(4 4) :initial-contents
 	    (list (list (int2bit #x19 8) (int2bit #xa0 8) (int2bit #x9a 8) (int2bit #xe9 8))
 		  (list (int2bit #x3d 8) (int2bit #xf4 8) (int2bit #xc6 8) (int2bit #xf8 8))
 		  (list (int2bit #xe3 8) (int2bit #xe2 8) (int2bit #x8d 8) (int2bit #x48 8))
 		  (list (int2bit #xbe 8) (int2bit #x2b 8) (int2bit #x2a 8) (int2bit #x08 8))))
 
+'("D4" "E0" "B8" "1E"
+  "27" "BF" "B4" "41"
+  "11" "98" "5D" "52"
+  "AE" "F1" "E5" "30")
 
+'("D4" "E0" "B8" "1E"
+  "BF" "B4" "41" "27"
+  "5D" "52" "11" "98"
+  "30" "AE" "F1" "E5")
+
+'("04" "E0" "48" "28"
+  "66" "CB" "F8" "06"
+  "81" "19" "D3" "26"
+  "E5" "9A" "7A" "4C")
 
 (defparameter test #2A((#*00000010 #*00000011 #*00000001 #*00000001)
 		       (#*00000001 #*00000010 #*00000011 #*00000001)
@@ -120,13 +128,19 @@
 					      (* j 8)
 					      (* (1+ j) 8))))))))
 
-(defun sub-word (word &optional (map *subbyte-map*))
-  (let ((ret nil))
-    (dotimes (i 4 (apply #'concat-bit-array (reverse ret)))
-      (push (sub-byte (subseq word (* i 8) (* (1+ i) 8)) map) ret))))
+(defun word-to-bytes-seq (word)
+  (loop for i from 0 below 32 by 8
+	collect (subseq word i (+ i 8))))
+
+(defun mapbyte (word func)
+  (apply (lambda (x y z w) (concatenate 'bit-vector x y z w))
+	 (mapcar func (word-to-bytes-seq word))))
+
+(defun sub-word (word)
+  (mapbyte word #'sub-byte))
 
 (defun rot-word (word)
-  (bit-lrotate word 8))
+  (apply (lambda (x1 x2 x3 x4) (concatenate 'bit-vector x2 x3 x4 x1)) (word-to-bytes-seq word)))
 
 (defun r-con (i)
   (let ((base-byte (int2bit 2 8)))
