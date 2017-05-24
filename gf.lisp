@@ -1,4 +1,4 @@
-(load './util.lisp')
+(load " ./util.lisp")
 
 (defparameter *mx* #b100011011)
 
@@ -28,4 +28,9 @@
       (int2bit 1 (length bit-array))
       (let ((acc bit-array))
 	(dotimes (n (1- num) (gf-mod acc (int2bit *mx* 9) (length bit-array)))
-	  (setf acc (gf-mult-nm bit-array acc))))))
+	  (setf acc (gf-mult-unfinited bit-array acc))))))
+
+(defun gf-power (bit-array num)
+  (if (= num 0)
+      (int2bit 1 (length bit-array))
+      (gf-mod (bit-shift-pad-0 bit-array (1- num)) #*100011011 (length bit-array))))

@@ -74,27 +74,23 @@
 	(setf (aref ret r c) (aref state r (mod (+ c (shift r)) Nb)))))
     ret))
 
-(defun mix-column (column)
-  (flet ((gf-mul-cof (b1-vec b2-vec index)
-	   (gf-mult (nth index b1-vec) (nth index b2-vec))))
-    (let* ((mix-coff (list #*00000010 #*00000011 #*00000001 #*00000001))
-	   (ret nil))
-      (dotimes (n 4 (reverse ret))
-	(push (reduce #'bit-xor
-		      (loop for i from 0 to 3
-			    collect (gf-mul-cof column mix-coff i)))
-	      ret)
-	(rotatef (nth 3 mix-coff)
-		 (nth 2 mix-coff)
-		 (nth 1 mix-coff)
-		 (nth 0 mix-coff))))))
+(defparameter test #2A((#*00000010 #*00000011 #*00000001 #*00000001)
+		       (#*00000001 #*00000010 #*00000011 #*00000001)
+		       (#*00000001 #*00000001 #*00000010 #*00000011)
+		       (#*00000011 #*00000001 #*00000001 #*00000010)))
 
-(defun mix-columns (bytes-4)
-  (let ((ret (make-array '(4 4))))
-    (dotimes (n 4 ret)
-      (let ((column (mix-column (loop for i from 0 to 3 collect (aref bytes-4 i n)))))
-	(dotimes (m 4)
-	  (setf (aref ret m n) (nth m column)))))))
+(defun mix-columns (state)
+  (let ((trans-mat #2A((#*00000010 #*00000011 #*00000001 #*00000001)
+		       (#*00000001 #*00000010 #*00000011 #*00000001)
+		       (#*00000001 #*00000001 #*00000010 #*00000011)
+		       (#*00000011 #*00000001 #*00000001 #*00000010)))
+	(ret (make-array (list 4 Nb))))
+    (dotimes (c Nb ret)
+      (dotimes (r 4)
+	(setf (aref ret r c)
+	      (reduce #'bit-xor (loop for i from 0 to 3
+				      collect
+				      (gf-mult (aref trans-mat r i) (aref state i c)))))))))
 
 (defun add-round-key (bytes-4 round-keys)
   (let ((ret (make-array '(4 4))))

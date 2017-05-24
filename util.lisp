@@ -120,11 +120,6 @@
 (defun bit-shift-pad-0 (bit-array num)
   (concat-bit-array bit-array (int2bit 0 num)))
 
-(defun gf-power (bit-array num)
-  (if (= num 0)
-      (int2bit 1 (length bit-array))
-      (gf-mod (bit-shift-pad-0 bit-array (1- num)) #*100011011 (length bit-array))))
-
 ;; integer as bit
 (defun map-byte (func bytes bit-len &optional (bit-num 8))
   (let ((rest bytes)
