@@ -140,17 +140,34 @@
   (mapbyte word #'sub-byte))
 
 (defun rot-word (word)
-  (apply (lambda (x1 x2 x3 x4) (concatenate 'bit-vector x2 x3 x4 x1)) (word-to-bytes-seq word)))
+  (apply (lambda (x1 x2 x3 x4) (concatenate 'bit-vector x2 x3 x4 x1))
+	 (word-to-bytes-seq word)))
 
 (defun r-con (i)
   (let ((base-byte (int2bit 2 8)))
-    (concat-bit-array (gf-power base-byte (1- i))
-		      (loop repeat 3 collect (int2bit 0 8)))))
-
-
+    (apply #'concat-bit-array (cons (gf-power base-byte (1- i))
+				    (loop repeat 3 collect (int2bit 0 8))))))
 
 (defun key-expansion (key)
-  )
+  (flet ((inner-key-divided (key)
+	   (loop for i from 0 below (* 32 Nk) by 32
+		 collect (subseq key i (+ i 32)))))
+    (let ((round-keys (make-array (* Nb (1+ Nr))))
+	  (key-blocks (inner-key-divided key)))
+      (dotimes (n Nk)
+	(setf (aref round-keys n) (car key-blocks)
+	      key-blocks (cdr key-blocks)))
+      (loop for i from Nk below (* Nb (1+ Nr))
+	    for tmp = (aref round-keys (1- i)) then (aref round-keys (1- i))
+	    do (setf (aref round-keys i)
+		     (bit-xor (aref round-keys (- i Nk))
+			      (cond ((= (mod i Nk) 0) (bit-xor (sub-word (rot-word tmp))
+							       (r-con (/ i Nk))))
+				    ((and (> Nk 6) (= (mod i Nk) 4)) (sub-word tmp))
+				    (t tmp)))))
+      round-keys)))
+
+(defparameter test-key (int2bit #x2b7e151628aed2a6abf7158809cf4f3c 128))
 
 (defun input-to-state (input)
   "vector to 2-dimention arr"
