@@ -120,12 +120,19 @@
 (defun bit-shift-pad-0 (bit-array num)
   (concat-bit-array bit-array (int2bit 0 num)))
 
-;; integer as bit
-(defun map-byte (func bytes bit-len &optional (bit-num 8))
-  (let ((rest bytes)
-	(acc 0))
-    (dotimes (n (truncate bit-len bit-num) acc)
-      (setf acc (+ acc
-		   (ash (funcall func (logand rest (1- (expt 2 bit-num))))
-			(* bit-num n)))
-	    rest (ash rest (- bit-num))))))
+(defun word-to-bytes-seq (word)
+  (loop for i from 0 below 32 by 8
+	collect (subseq word i (+ i 8))))
+
+(defun mapbyte (word func)
+  (apply (lambda (x y z w) (concatenate 'bit-vector x y z w))
+	 (mapcar func (word-to-bytes-seq word))))
+
+
+;; not used, move
+(defun divide-list (list num)
+  (loop repeat (ceiling (/ (length list) num))
+	collect (loop repeat num
+		      for i = (pop list) then (pop list)
+		      while i
+		      collect i)))
