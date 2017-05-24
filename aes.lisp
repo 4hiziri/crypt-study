@@ -88,9 +88,10 @@
     (dotimes (c Nb ret)
       (dotimes (r 4)
 	(setf (aref ret r c)
-	      (reduce #'bit-xor (loop for i from 0 to 3
-				      collect
-				      (gf-mult (aref trans-mat r i) (aref state i c)))))))))
+	      (reduce #'bit-xor
+		      (loop for i from 0 to 3
+			    collect
+			    (gf-mult (aref trans-mat r i) (aref state i c)))))))))
 
 (defun add-round-key (bytes-4 round-keys)
   (let ((ret (make-array '(4 4))))
