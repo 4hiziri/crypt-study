@@ -1,5 +1,3 @@
-(load " ./util.lisp")
-
 (defparameter *mx* #b100011011)
 
 (defun gf-mod (b1 b2 len)
@@ -34,3 +32,11 @@
   (if (= num 0)
       (int2bit 1 (length bit-array))
       (gf-mod (bit-shift-pad-0 bit-array (1- num)) #*100011011 (length bit-array))))
+
+(defun gf-inv (bit-array)
+  (if (equal bit-array #*00000000)
+      #*00000000
+      (loop for i from 1 to 255
+	    for b = (int2bit i 8) then (int2bit i 8)
+	    when (equal (gf-mult b bit-array) #*00000001)
+	      do (return b))))
