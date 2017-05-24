@@ -47,13 +47,17 @@
     (dotimes (i 8 (bit-xor (reverse ret) salt))
       (setf (aref ret i) (reduce (lambda (x y) (logxor x y))
 				 (bit-and byte (aref *matrix-sbox* i)))))))
-
+;; :TODO make hash-map
 (defun sub-bytes (state)
   "substitude each byte in state."
   (let ((ret (make-array (list 4 Nb))))    
     (dotimes (r 4 ret)
       (dotimes (c Nb)
 	(setf (aref ret r c) (sub-byte (aref state r c)))))))
+
+;; :TODO make hash-map
+(defun inv-sub-byte (byte)
+  )
 
 ;; #2A((1 2 3 4)
 ;;     (5 6 7 8)
@@ -113,19 +117,29 @@
 		       (#*00000001 #*00000001 #*00000010 #*00000011)
 		       (#*00000011 #*00000001 #*00000001 #*00000010)))
 
-(defun mix-columns (state)
-  (let ((trans-mat #2A((#*00000010 #*00000011 #*00000001 #*00000001)
-		       (#*00000001 #*00000010 #*00000011 #*00000001)
-		       (#*00000001 #*00000001 #*00000010 #*00000011)
-		       (#*00000011 #*00000001 #*00000001 #*00000010)))
-	(ret (make-array (list 4 Nb))))
+(defun mix-columns-by-matrix (state matrix)
+  (let ((ret (make-array (list 4 Nb))))
     (dotimes (c Nb ret)
       (dotimes (r 4)
 	(setf (aref ret r c)
 	      (reduce #'bit-xor
 		      (loop for i from 0 to 3
 			    collect
-			    (gf-mult (aref trans-mat r i) (aref state i c)))))))))
+			    (gf-mult (aref matrix r i) (aref state i c)))))))))
+
+(defun mix-columns (state)
+  (let ((trans-mat #2A((#*00000010 #*00000011 #*00000001 #*00000001)
+		       (#*00000001 #*00000010 #*00000011 #*00000001)
+		       (#*00000001 #*00000001 #*00000010 #*00000011)
+		       (#*00000011 #*00000001 #*00000001 #*00000010))))
+    (mix-columns-by-matrix state trans-mat)))
+
+(defun inv-mix-columns (state)
+  (let ((trans-mat #2A((#*00001110 #*00001011 #*00001101 #*00001001)
+		       (#*00001001 #*00001110 #*00001011 #*00001101)
+		       (#*00001101 #*00001001 #*00001110 #*00001011)
+		       (#*00001011 #*00001101 #*00001001 #*00001110))))
+    (mix-columns-by-matrix state trans-mat)))
 
 (defun add-round-key (state round-keys)
   (let ((ret (make-array (list 4 Nb)))
