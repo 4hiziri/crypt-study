@@ -74,6 +74,24 @@
 	(setf (aref ret r c) (aref state r (mod (+ c (shift r)) Nb)))))
     ret))
 
+(defparameter input #2A((#*00011001 #*10100000 #*10011010 #*11101001)
+			(#*00111101 #*11110100 #*11000110 #*11111000)
+			(#*11100011 #*11100010 #*10001101 #*01001000)
+			(#*10111110 #*00101011 #*00101010 #*00001000)))
+
+("D4" "E0" "B8" "1E"
+ "27" "BF" "B4" "41"
+ "11" "98" "5D" "52"
+ "AE" "F1" "E5" "30")
+
+(make-array '(4 4) :initial-contents
+	    (list (list (int2bit #x19 8) (int2bit #xa0 8) (int2bit #x9a 8) (int2bit #xe9 8))
+		  (list (int2bit #x3d 8) (int2bit #xf4 8) (int2bit #xc6 8) (int2bit #xf8 8))
+		  (list (int2bit #xe3 8) (int2bit #xe2 8) (int2bit #x8d 8) (int2bit #x48 8))
+		  (list (int2bit #xbe 8) (int2bit #x2b 8) (int2bit #x2a 8) (int2bit #x08 8))))
+
+
+
 (defparameter test #2A((#*00000010 #*00000011 #*00000001 #*00000001)
 		       (#*00000001 #*00000010 #*00000011 #*00000001)
 		       (#*00000001 #*00000001 #*00000010 #*00000011)
