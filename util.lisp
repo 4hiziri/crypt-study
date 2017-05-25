@@ -136,3 +136,12 @@
 		      for i = (pop list) then (pop list)
 		      while i
 		      collect i)))
+
+(defun func-to-vector (func start end)
+  (make-array (- end start)
+	      :initial-contents (loop for i from 0 below end collect (funcall func i))))
+
+(defun inv-table (vector)
+  (let ((ret (make-array (length vector))))
+    (dotimes (l (length vector) ret)
+      (setf (aref ret (aref vector l)) l))))

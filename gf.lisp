@@ -12,9 +12,13 @@
     (inner-loop (bit2int b1) (bit2int b2))))
 
 (defun gf-mult-unfinited (b1 b2)
-  (let ((b2-pos-1 (bit-index-list b2))
-	(max-len (+ (length b1) (length b2))))
-    (reduce #'bit-xor (mapcar (lambda (x) (bit-shift b1 x max-len)) b2-pos-1))))
+  ;; if b2 is 0, cannot calc
+  ;; so simply return 0 as bit-vector
+  (if (reduce (lambda (x y) (and x y)) (map 'list (lambda (x) (= x 0)) b2)) 
+      (make-array (+ (length b1) (length b2)) :element-type 'bit :initial-element 0) 
+      (let ((b2-pos-1 (bit-index-list b2))
+	    (max-len (+ (length b1) (length b2))))
+	(reduce #'bit-xor (mapcar (lambda (x) (bit-shift b1 x max-len)) b2-pos-1)))))
 
 (defun gf-mult (b1 b2)
   (gf-mod (gf-mult-unfinited b1 b2)
