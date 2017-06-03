@@ -123,6 +123,12 @@
     (is (cl-crypto-util:bit-index-list test-arr)
 	res)))
 
+(subtest "bit-indexes"
+  (let ((test-num #b100101)
+	(ret (list 0 2 5)))
+    (is (cl-crypto-util:bit-indexes test-num)
+	ret)))
+
 (subtest "word-to-bytes-seq"
   (let ((test-word #*11111000111101001111001011110001)
 	(res (list #*11111000 #*11110100 #*11110010 #*11110001)))

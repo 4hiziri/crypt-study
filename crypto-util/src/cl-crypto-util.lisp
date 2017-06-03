@@ -160,6 +160,13 @@ each element is different."
 	  collect i))
 
 @export
+(defun bit-indexes (num)
+  (let ((ret nil))
+    (dotimes (i (integer-length num) (reverse ret))
+      (when (logbitp i num)
+	(push i ret)))))
+
+@export
 (defun word-to-bytes-seq (word)
   (divide-array word 8))
 
