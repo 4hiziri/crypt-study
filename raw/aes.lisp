@@ -1,7 +1,7 @@
 ;; Rijndael
 ;; use integer as bits
-;(load "./util.lisp")
-;(load "./gf.lisp")
+(ql:quickload :cl-galois)
+(ql:quickload :cl-crypto-util)
 
 (defun bits-matrix (bits)
   (let ((mat (make-array '(4 4))))
