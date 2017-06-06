@@ -9,6 +9,8 @@
 (defparameter Nb 4)
 (defparameter Nr 10)
 
+;; util
+
 (defun matrix-sbox (i)
   (labels ((rotate (v)
 	     (if (logbitp 7 v)
@@ -114,71 +116,47 @@
 	(setf (aref ret r (mod (+ c (shift r)) Nb)) (aref state r c))))
     ret))
 
-(defparameter input #2A((#*00011001 #*10100000 #*10011010 #*11101001)
-			(#*00111101 #*11110100 #*11000110 #*11111000)
-			(#*11100011 #*11100010 #*10001101 #*01001000)
-			(#*10111110 #*00101011 #*00101010 #*00001000)))
-
-
-
-'("D4" "E0" "B8" "1E"
-  "27" "BF" "B4" "41"
-  "11" "98" "5D" "52"
-  "AE" "F1" "E5" "30")
-
-'("D4" "E0" "B8" "1E"
-  "BF" "B4" "41" "27"
-  "5D" "52" "11" "98"
-  "30" "AE" "F1" "E5")
-
-'("04" "E0" "48" "28"
-  "66" "CB" "F8" "06"
-  "81" "19" "D3" "26"
-  "E5" "9A" "7A" "4C")
-
-(defparameter test #2A((#*00000010 #*00000011 #*00000001 #*00000001)
-		       (#*00000001 #*00000010 #*00000011 #*00000001)
-		       (#*00000001 #*00000001 #*00000010 #*00000011)
-		       (#*00000011 #*00000001 #*00000001 #*00000010)))
-
 (defun mix-columns-by-matrix (state matrix)
   (let ((ret (make-array (list 4 Nb))))
     (dotimes (c Nb ret)
       (dotimes (r 4)
 	(setf (aref ret r c)
-	      (reduce #'bit-xor
+	      (reduce #'logxor
 		      (loop for i from 0 to 3
-			    collect
-			    (gf-mult (aref matrix r i) (aref state i c)))))))))
+			    collect (cl-galois:gf-mult (aref matrix r i) (aref state i c)))))))))
 
 (defun mix-columns (state)
-  (let ((trans-mat #2A((#*00000010 #*00000011 #*00000001 #*00000001)
-		       (#*00000001 #*00000010 #*00000011 #*00000001)
-		       (#*00000001 #*00000001 #*00000010 #*00000011)
-		       (#*00000011 #*00000001 #*00000001 #*00000010))))
+  (let ((trans-mat #2A((#b00000010 #b00000011 #b00000001 #b00000001)
+		       (#b00000001 #b00000010 #b00000011 #b00000001)
+		       (#b00000001 #b00000001 #b00000010 #b00000011)
+		       (#b00000011 #b00000001 #b00000001 #b00000010))))
     (mix-columns-by-matrix state trans-mat)))
 
 (defun inv-mix-columns (state)
-  (let ((trans-mat #2A((#*00001110 #*00001011 #*00001101 #*00001001)
-		       (#*00001001 #*00001110 #*00001011 #*00001101)
-		       (#*00001101 #*00001001 #*00001110 #*00001011)
-		       (#*00001011 #*00001101 #*00001001 #*00001110))))
+  (let ((trans-mat #2A((#b00001110 #b00001011 #b00001101 #b00001001)
+		       (#b00001001 #b00001110 #b00001011 #b00001101)
+		       (#b00001101 #b00001001 #b00001110 #b00001011)
+		       (#b00001011 #b00001101 #b00001001 #b00001110))))
     (mix-columns-by-matrix state trans-mat)))
 
+;; not tested
 (defun add-round-key (state round-keys)
   (let ((ret (make-array (list 4 Nb)))
 	(keys round-keys))
     (dotimes (c Nb ret)
-      (let ((key-blocks (word-to-bytes-seq (pop keys))))	  
+      (let ((round-key (pop keys)))
 	(dotimes (r 4)
-	  (setf (aref ret r c) (bit-xor (aref state r c) (pop key-blocks))))))))
+	  (let* ((offset (- 32 (* (1+ r) 8)))
+		 (key (truncate round-key offset)))
+	    (setf round-key (mod round-key offset)
+		  (aref ret r c) (logxor (aref state r c) key))))))))
 
 (defun sub-word (word)
   (mapbyte word #'sub-byte))
 
 (defun rot-word (word)
-  (apply (lambda (x1 x2 x3 x4) (concatenate 'bit-vector x2 x3 x4 x1))
-	 (word-to-bytes-seq word)))
+  (multiple-value-bind (upper8 lower24) (truncate word (expt 2 24))
+    (+ (* lower24 (expt 2 8)) upper8)))
 
 (defun r-con (i)
   (let ((base-byte (cl-crypto-util:int-bit 2 8)))
