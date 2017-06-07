@@ -11,6 +11,21 @@
 
 ;; util
 
+(defun word-bytes (word)
+  (loop repeat 4
+	for rest-word = word then (mod rest-word i)
+	for i = (expt 2 24) then (ash i -8)	
+	for byte = (truncate rest-word i)
+	collect byte))
+
+(defun bytes-word (bytes)
+  (let ((ret 0))    
+    (dolist (byte bytes ret)
+      (setf ret (+ (ash ret 8) byte)))))
+
+(defun mapbyte (func word)
+  (bytes-word (mapcar func (word-bytes word))))
+
 (defun matrix-sbox (i)
   (labels ((rotate (v)
 	     (if (logbitp 7 v)
@@ -152,16 +167,15 @@
 		  (aref ret r c) (logxor (aref state r c) key))))))))
 
 (defun sub-word (word)
-  (mapbyte word #'sub-byte))
+  (mapbyte #'sub-byte word))
 
 (defun rot-word (word)
   (multiple-value-bind (upper8 lower24) (truncate word (expt 2 24))
     (+ (* lower24 (expt 2 8)) upper8)))
 
 (defun r-con (i)
-  (let ((base-byte (cl-crypto-util:int-bit 2 8)))
-    (apply #'concat-bit-array (cons (gf-power base-byte (1- i))
-				    (loop repeat 3 collect (cl-crypto-util:int-bit 0 8))))))
+  (let ((base-byte 2))
+    (ash (cl-galois:gf-power base-byte (1- i)) 24)))
 
 (defun key-expansion (key)
   (flet ((inner-key-divided (key)
