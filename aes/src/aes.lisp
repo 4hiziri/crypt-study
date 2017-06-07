@@ -212,26 +212,38 @@
       (dotimes (r 4)
 	(setf (aref state r c) (pop input-list))))))
 
-(defun state-to-output (state)
-  (let ((output (make-array (* 4 Nb))))
-    (dotimes (r 4 (apply #'concat-bit-array (coerce output 'list)))
-      (dotimes (c Nb)
-	(setf (aref output (+ r (* 4 c))) (aref state r c))))))
+(defun state-output (state)
+  (let ((output 0))
+    (dotimes (c Nb output)
+      (dotimes (r 4)
+	(setf output (+ (ash output 8) (aref state r c)))))))
 
+;; @export
+;; (defun encrypt (input key)
+;;   (flet ((inner-block-to-byte-list (input)
+;; 	   (make-array 16 :initial-contents
+;; 		       (loop for i from 0 below 128 by 8
+;; 			     collect (subseq input i (+ i 8))))))
+;;     (let ((state (input-to-state (inner-block-to-byte-list input))) ;; copy input to state
+;; 	  (round-keys (key-expansion key))) ;; get round-keys      
+;;       (setf state (add-round-key state (coerce (subseq round-keys 0 Nb) 'list)))
+;;       (loop for r from 1 to (1- Nr) do
+;; 	(setf state (add-round-key (mix-columns (shift-rows (sub-bytes state)))
+;; 				   ;; get Nb-round-keys
+;; 				   (coerce (subseq round-keys (* r Nb) (* (1+ r) Nb)) 'list))))      
+;;       (state-to-output (add-round-key (shift-rows (sub-bytes state))
+;; 				      (coerce (subseq round-keys (* Nr Nb) (* (1+ Nr) Nb)) 'list))))))
 @export
 (defun encrypt (input key)
-  (flet ((inner-block-to-byte-list (input)
-	   (make-array 16 :initial-contents(loop for i from 0 below 128 by 8
-						 collect (subseq input i (+ i 8))))))
-    (let ((state (input-to-state (inner-block-to-byte-list input))) ;; copy input to state
-	  (round-keys (key-expansion key))) ;; get round-keys      
-      (setf state (add-round-key state (coerce (subseq round-keys 0 Nb) 'list)))
-      (loop for r from 1 to (1- Nr) do
-	(setf state (add-round-key (mix-columns (shift-rows (sub-bytes state)))
-				   ;; get Nb-round-keys
-				   (coerce (subseq round-keys (* r Nb) (* (1+ r) Nb)) 'list))))      
-      (state-to-output (add-round-key (shift-rows (sub-bytes state))
-				      (coerce (subseq round-keys (* Nr Nb) (* (1+ Nr) Nb)) 'list))))))
+  (let ((state (input-state input)) ;; copy input to state
+	(round-keys (key-expansion key))) ;; get round-keys      
+    (setf state (add-round-key state (coerce (subseq round-keys 0 Nb) 'list)))
+    (loop for r from 1 to (1- Nr) do
+      (setf state (add-round-key (mix-columns (shift-rows (sub-bytes state)))
+				 ;; get Nb-round-keys
+				 (coerce (subseq round-keys (* r Nb) (* (1+ r) Nb)) 'list))))      
+    (state-output (add-round-key (shift-rows (sub-bytes state))
+				 (coerce (subseq round-keys (* Nr Nb) (* (1+ Nr) Nb)) 'list)))))
 
 @export
 (defun decrypt (input key)
@@ -248,14 +260,14 @@
       (state-to-output (add-round-key (inv-sub-bytes (inv-shift-rows state))
 				      (coerce (subseq round-keys 0 Nb) 'list))))))
 
-
-
-(defparameter test-input (cl-crypto-util:int-bit #x3243f6a8885a308d313198a2e0370734 128))
-(defparameter test-key (cl-crypto-util:int-bit #x2b7e151628aed2a6abf7158809cf4f3c 128))
-(defparameter test-output (cl-crypto-util:int-bit #x3925841d02dc09fbdc118597196a0b32 128))
-
-(defun output-hex (state)
-  (let ((ret (make-array (list 4 Nb))))    
-    (dotimes (r 4 ret)
-      (dotimes (c Nb)
-	(setf (aref ret r c) (format nil "~x" (cl-crypto-util:bit-int (aref state r c))))))))
+@export
+(defun decrypt (input key)
+  (let ((state (input-state input))
+	(round-keys (key-expansion key)))
+    (setf state (add-round-key state (coerce (subseq round-keys (* Nr Nb) (* (1+ Nr) Nb)) 'list)))
+    (loop for r downfrom (1- Nr) to 1 do
+      (setf state (inv-mix-columns
+		   (add-round-key (inv-sub-bytes (inv-shift-rows state))
+				  (coerce (subseq round-keys (* r Nb) (* (+ r 1) Nb)) 'list)))))
+    (state-output (add-round-key (inv-sub-bytes (inv-shift-rows state))
+				 (coerce (subseq round-keys 0 Nb) 'list)))))

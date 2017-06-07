@@ -89,7 +89,7 @@
       after-xor-rcon))
 
 (subtest "key-expansion"
-  (let ((val-4th #xa0fafe17))    
+  (let ((val-4th #xa0fafe17))
     (is (aref (aes::key-expansion test-128-key) 4)
 	val-4th)))
 
@@ -114,5 +114,19 @@
 		   (0 0 0 #x78))))    
     (ok (equalp (aes::input-state input)
 		state))))
+
+(subtest "output"
+  (let ((state #2A((0 0 0 #x12)
+		   (0 0 0 #x34)
+		   (0 0 0 #x56)
+		   (0 0 0 #x78)))
+	(output #x12345678))
+    (is (aes::state-output state)
+	output)))
+
+(subtest "encryption and decryption"
+  (let ((val #xdeadbeaf))    
+    (is (aes:decrypt (aes:encrypt val test-128-key) test-128-key)
+	val)))
 
 (finalize)
