@@ -11,17 +11,30 @@
 
 ;; util
 
+(defun divide-num-bits (num bit-num)
+  (reverse (loop repeat (ceiling (/ (integer-length num) bit-num))
+		 with offset = (expt 2 bit-num) 
+		 for rest = num then (truncate rest offset)
+		 for part = (mod rest offset)
+		 collect part)))
+
+(defun divide-num-fixlen (num bit-num bit-length)  
+  (let ((ret (divide-num-bits num bit-num))
+	(length (/ bit-length bit-num)))
+    (if length
+	(append (loop repeat (- length (length ret)) collect 0) ret)
+	ret)))
+
+(defun accumulate-bits (bits bit-length)
+  (let ((acc 0))    
+    (dolist (e bits acc)
+      (setf acc (+ (ash acc bit-length) e)))))
+
 (defun word-bytes (word)
-  (loop repeat 4
-	for rest-word = word then (mod rest-word i)
-	for i = (expt 2 24) then (ash i -8)	
-	for byte = (truncate rest-word i)
-	collect byte))
+  (divide-num-fixlen word 8 32))
 
 (defun bytes-word (bytes)
-  (let ((ret 0))    
-    (dolist (byte bytes ret)
-      (setf ret (+ (ash ret 8) byte)))))
+  (accumulate-bits bytes 8))
 
 (defun mapbyte (func word)
   (bytes-word (mapcar func (word-bytes word))))
@@ -154,17 +167,13 @@
 		       (#b00001011 #b00001101 #b00001001 #b00001110))))
     (mix-columns-by-matrix state trans-mat)))
 
-;; not tested
 (defun add-round-key (state round-keys)
   (let ((ret (make-array (list 4 Nb)))
 	(keys round-keys))
     (dotimes (c Nb ret)
-      (let ((round-key (pop keys)))
+      (let ((round-key (word-bytes (pop keys))))
 	(dotimes (r 4)
-	  (let* ((offset (- 32 (* (1+ r) 8)))
-		 (key (truncate round-key offset)))
-	    (setf round-key (mod round-key offset)
-		  (aref ret r c) (logxor (aref state r c) key))))))))
+	  (setf (aref ret r c) (logxor (aref state r c) (pop round-key))))))))
 
 (defun sub-word (word)
   (mapbyte #'sub-byte word))
@@ -180,30 +189,28 @@
 (defun key-expansion (key)
   (flet ((inner-key-divided (key)
 	   "32 * Nk bit key -> list of 32bits block"
-	   (loop for i from 0 below (* 32 Nk) by 32
-		 collect (subseq key i (+ i 32)))))
+	   (divide-num-bits key 32)))
     (let ((round-keys (make-array (* Nb (1+ Nr))))
 	  (key-blocks (inner-key-divided key)))
       (dotimes (n Nk) ;; set keys to first Nk words of round-key
 	(setf (aref round-keys n) (pop key-blocks)))
       (loop for i from Nk below (* Nb (1+ Nr))
-	    for tmp = (aref round-keys (1- i)) then (aref round-keys (1- i))
+	    for tmp = (aref round-keys (1- i))
 	    do (setf (aref round-keys i)
-		     (bit-xor (aref round-keys (- i Nk))
-			      (cond ((= (mod i Nk) 0) (bit-xor (sub-word (rot-word tmp))
-							       (r-con (/ i Nk))))
-				    ((and (> Nk 6) (= (mod i Nk) 4)) (sub-word tmp))
-				    (t tmp)))))
+		     (logxor (aref round-keys (- i Nk))
+			     (cond ((= (mod i Nk) 0) (logxor (sub-word (rot-word tmp))
+							     (r-con (/ i Nk))))
+				   ((and (> Nk 6) (= (mod i Nk) 4)) (sub-word tmp))
+				   (t tmp)))))
       round-keys)))
 
-(defparameter test-key (cl-crypto-util:int-bit #x2b7e151628aed2a6abf7158809cf4f3c 128))
-
-(defun input-to-state (input)
-  "vector to 2-dimention arr"
-  (let ((state (make-array (list 4 Nb))))
-    (dotimes (r 4 state)
-      (dotimes (c Nb)
-	(setf (aref state r c) (aref input (+ r (* 4 c))))))))
+(defun input-state (input)
+  "num to 2dim-array"  
+  (let ((input-list (divide-num-fixlen input 8 128))
+	(state (make-array (list 4 Nb))))
+    (dotimes (c Nb state)
+      (dotimes (r 4)
+	(setf (aref state r c) (pop input-list))))))
 
 (defun state-to-output (state)
   (let ((output (make-array (* 4 Nb))))

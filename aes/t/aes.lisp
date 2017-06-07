@@ -29,11 +29,28 @@
 				   (229 154 122 76)))
 
 (defparameter test-128-key #x2b7e151628aed2a6abf7158809cf4f3c)
-
 (defparameter test-word #x09cf4f3c)
 (defparameter after-rotword #xcf4f3c09)
 (defparameter after-subword #x8a84eb01)
 (defparameter after-xor-rcon #x8b84eb01)
+
+(subtest "divide-num-bits"
+  (let ((test-val #x123456)
+	(res (list #x123 #x456)))
+    (is (aes::divide-num-bits test-val (* 4 3))
+	res)))
+
+(subtest "divide-num-fixlen"
+  (let ((test-val #x1234)
+	(res (list #x0 #x0 #x12 #x34)))
+    (is (aes::divide-num-fixlen test-val 8 32)
+	res)))
+
+(subtest "accumulate-bits"
+  (let ((test (list #x12 #x34))
+	(res #x1234))
+    (is (aes::accumulate-bits test 8)
+	res)))
 
 (subtest "sub-bytes"
   (ok (equalp (aes::sub-bytes test-input)
@@ -67,6 +84,35 @@
   (is (aes::sub-word after-rotword)
       after-subword))
 
-;(subtest "add-roundkey"  )
+(subtest "xor-rcon"
+  (is (logxor (aes::r-con 1) after-subword)
+      after-xor-rcon))
+
+(subtest "key-expansion"
+  (let ((val-4th #xa0fafe17))    
+    (is (aref (aes::key-expansion test-128-key) 4)
+	val-4th)))
+
+(subtest "add-round-key"
+  (let ((round-keys (list #x00010203 #x04050607 #x08090a0b #x0c0d0e0f))
+	(state #2A((0 0 0 0)
+		   (0 0 0 0)
+		   (0 0 0 0)
+		   (0 0 0 0)))
+	(res #2A((0 4 8 12)
+		 (1 5 9 13)
+		 (2 6 10 14)
+		 (3 7 11 15))))
+    (ok (equalp (aes::add-round-key state round-keys)
+		res))))
+
+(subtest "input-state"
+  (let ((input #x12345678)
+	(state #2A((0 0 0 #x12)
+		   (0 0 0 #x34)
+		   (0 0 0 #x56)
+		   (0 0 0 #x78))))    
+    (ok (equalp (aes::input-state input)
+		state))))
 
 (finalize)
